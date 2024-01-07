@@ -19,11 +19,57 @@ function morbs.recursive_serialize(value, seen)
     end
 end
 
--- Function to serialize the entity's data
+-- Helper function to clean mob staticdata
+local function clean_staticdata(self)
+    local tmp = {}
+    for key, value in pairs(self) do
+        if type(value) ~= "function" and type(value) ~= "nil" and type(value) ~= "userdata" and key ~= "object" and key ~= "_cmi_components" then
+            tmp[key] = value
+        end
+    end
+    return tmp
+end
+
+-- Function to serialize the entity's data with improved handling and logging
+-- Function to serialize the entity's data with improved handling and logging
 function morbs.serialize_entity(entity)
     local entity_data = entity:get_luaentity()
-    return morbs.recursive_serialize(entity_data, {})
+
+    if not entity_data then
+        minetest.log("error", "[Morbs] Error in serializing entity: entity data is nil")
+        return nil
+    end
+
+    -- Log the raw entity data
+    minetest.log("action", "[Morbs] Raw Entity Data: " .. dump(entity_data))
+
+    -- Clean the entity data before serialization
+    local cleaned_data = clean_staticdata(entity_data)
+
+    -- Log the cleaned entity data
+    minetest.log("action", "[Morbs] Cleaned Entity Data: " .. dump(cleaned_data))
+
+    -- Check if the essential fields are present
+    if not cleaned_data.textures or (not cleaned_data.name and not entity_data.name) then
+        minetest.log("error", "[Morbs] Essential fields missing in entity data for serialization")
+        return nil
+    end
+
+    -- Add the name field from the original entity data if it's not present in cleaned data
+    if not cleaned_data.name and entity_data.name then
+        cleaned_data.name = entity_data.name
+    end
+
+    -- Serialize and return the cleaned data
+    local serialized_data = minetest.serialize(cleaned_data)
+    minetest.log("action", "[Morbs] Serialized Entity Data: " .. serialized_data)
+    return serialized_data
 end
+
+
+
+
+
 
 -- Function to capture an entity
 function morbs.capture_entity(user, object)
@@ -69,20 +115,24 @@ function morbs.release_entity(pos, itemstack, user)
     local meta = itemstack:get_meta()
     local serialized_data = meta:get_string("entity")
 
-    minetest.chat_send_player(user:get_player_name(), "Trying to release entity at: " .. minetest.pos_to_string(pos))
-    minetest.log("action","Serialized Morb Data: "..serialized_data)
+    minetest.log("action", "[Morbs] Serialized Data: " .. serialized_data)
+
     if serialized_data and serialized_data ~= "" then
         local entity_properties = minetest.deserialize(serialized_data)
-        if entity_properties then
+
+        if entity_properties and entity_properties.name then
             minetest.chat_send_player(user:get_player_name(), "Deserialized data: " .. dump(entity_properties))
-            entity_properties.initial_properties = nil
-            local spawned_entity = minetest.add_entity(pos, entity_properties.name, entity_properties)
+
+            -- Corrected part: Pass only the name and serialized_data (as string) to add_entity
+            local spawned_entity = minetest.add_entity(pos, entity_properties.name, serialized_data)
             if spawned_entity then
                 minetest.chat_send_player(user:get_player_name(), "Entity released successfully.")
                 return ItemStack("morbs:morb_empty")
             else
                 minetest.chat_send_player(user:get_player_name(), "Failed to spawn entity.")
             end
+        else
+            minetest.chat_send_player(user:get_player_name(), "Invalid or missing entity data.")
         end
     else
         minetest.chat_send_player(user:get_player_name(), "No serialized data found.")
