@@ -32,6 +32,7 @@ end
 
 -- Function to serialize the entity's data with improved handling and logging
 -- Function to serialize the entity's data with improved handling and logging
+-- Function to serialize the entity's data with improved handling and logging
 function morbs.serialize_entity(entity)
     local entity_data = entity:get_luaentity()
 
@@ -49,15 +50,20 @@ function morbs.serialize_entity(entity)
     -- Log the cleaned entity data
     minetest.log("action", "[Morbs] Cleaned Entity Data: " .. dump(cleaned_data))
 
-    -- Check if the essential fields are present
-    if not cleaned_data.textures or (not cleaned_data.name and not entity_data.name) then
-        minetest.log("error", "[Morbs] Essential fields missing in entity data for serialization")
+    -- Ensure essential fields are present
+    if not cleaned_data.textures then
+        minetest.log("error", "[Morbs] Textures missing in entity data for serialization")
         return nil
     end
 
     -- Add the name field from the original entity data if it's not present in cleaned data
-    if not cleaned_data.name and entity_data.name then
-        cleaned_data.name = entity_data.name
+    if not cleaned_data.name then
+        if entity_data.name then
+            cleaned_data.name = entity_data.name
+        else
+            minetest.log("error", "[Morbs] Name field missing in entity data for serialization")
+            return nil
+        end
     end
 
     -- Serialize and return the cleaned data
@@ -65,6 +71,7 @@ function morbs.serialize_entity(entity)
     minetest.log("action", "[Morbs] Serialized Entity Data: " .. serialized_data)
     return serialized_data
 end
+
 
 
 
