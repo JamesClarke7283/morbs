@@ -15,4 +15,7 @@ read_globals = {
 
     -- MTG
     "default", "sfinv", "creative",
+
+    -- Morbs
+    "morbs",
 }
