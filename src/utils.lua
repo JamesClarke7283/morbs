@@ -23,13 +23,22 @@ end
 local function clean_staticdata(self)
     local tmp = {}
     for key, value in pairs(self) do
-        if type(value) ~= "function" and type(value) ~= "nil" and type(value) ~= "userdata" and key ~= "object" and key ~= "_cmi_components" then
-            tmp[key] = value
+        if type(value) ~= "function" and type(value) ~= "nil" and type(value) ~= "userdata" and key ~= "_cmi_components" then
+            if key == "object" and value and type(value.get_properties) == "function" then
+                -- Retrieve properties from the object if it's an entity object
+                tmp[key] = value:get_properties()
+            else
+                -- Copy the value as is for other keys
+                tmp[key] = value
+            end
         end
     end
     return tmp
 end
 
+
+-- Function to serialize the entity's data with improved handling and logging
+-- Function to serialize the entity's data with improved handling and logging
 -- Function to serialize the entity's data with improved handling and logging
 -- Function to serialize the entity's data with improved handling and logging
 -- Function to serialize the entity's data with improved handling and logging
@@ -50,20 +59,20 @@ function morbs.serialize_entity(entity)
     -- Log the cleaned entity data
     minetest.log("action", "[Morbs] Cleaned Entity Data: " .. dump(cleaned_data))
 
-    -- Ensure essential fields are present
+    -- Find and add the 'textures' field from various possible locations
+    cleaned_data.textures = cleaned_data.textures or entity_data.textures or entity_data.base_texture or
+                             (entity_data.visual and entity_data.visual.texture)
+
     if not cleaned_data.textures then
         minetest.log("error", "[Morbs] Textures missing in entity data for serialization")
         return nil
     end
 
-    -- Add the name field from the original entity data if it's not present in cleaned data
+    -- Ensure the name field is present
+    cleaned_data.name = cleaned_data.name or entity_data.name
     if not cleaned_data.name then
-        if entity_data.name then
-            cleaned_data.name = entity_data.name
-        else
-            minetest.log("error", "[Morbs] Name field missing in entity data for serialization")
-            return nil
-        end
+        minetest.log("error", "[Morbs] Name field missing in entity data for serialization")
+        return nil
     end
 
     -- Serialize and return the cleaned data
@@ -71,6 +80,8 @@ function morbs.serialize_entity(entity)
     minetest.log("action", "[Morbs] Serialized Entity Data: " .. serialized_data)
     return serialized_data
 end
+
+
 
 
 
